@@ -48,14 +48,14 @@ struct KirschPlate {
 
 // Free thin ring a <= r <= b (plane stress) carrying the steady conduction
 // profile T(r) = T_a + C ln(r / a). Thermal stresses from Timoshenko & Goodier,
-// Theory of Elasticity, sec. 151; they depend only on the non-uniform part of T.
+// Theory of Elasticity (thermal stresses in a thin disk); they depend only on the non-uniform part of T.
 struct ThermoelasticRing {
   double a, b, E, alpha, T_a, C;
 
   double temperature(double r) const;
   // Thin ring (plane stress): sxx, syy, sxy.
   Eigen::Vector3d stress(const Vec2& p) const;
-  // Long cylinder with free ends (generalized plane strain, sec. 150):
+  // Long cylinder with free ends (generalized plane strain):
   // sxx, syy, sxy, szz.
   Eigen::Vector4d stress_long_cylinder(const Vec2& p, double nu) const;
 };
