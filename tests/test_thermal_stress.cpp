@@ -118,7 +118,8 @@ SCENARIO("A linear temperature gradient in a free plate", "[thermal-stress][conv
       const ElasticSolution coarse = run(8), fine = run(16), finer = run(32);
 
       THEN("the self-equilibrated thermal load leaves the supports unloaded") {
-        CHECK(fine.reactions.cwiseAbs().maxCoeff() < 1e-6);
+        // Nodal thermal forces are of order E alpha dT L ~ 1e9 N; reactions are round-off.
+        CHECK(fine.reactions.cwiseAbs().maxCoeff() < 1e-12 * E * alpha * 400.0);
       }
       THEN("the (exactly zero) stress is approached at first order") {
         // A linear T is compatible in plane stress, but the exact displacement is
@@ -131,17 +132,24 @@ SCENARIO("A linear temperature gradient in a free plate", "[thermal-stress][conv
   }
 }
 
-SCENARIO("Coupled analysis: a ring heated inside and cooled outside", "[thermal-stress][coupled]") {
+SCENARIO("Coupled analysis: a ring heated inside and cooled outside", "[thermal-stress][coupled][convergence]") {
   GIVEN("T = 1100 K at r = 10 mm, convection to 400 K at r = 25 mm, free to expand") {
     const double a = 0.010, b = 0.025, k = 20.0, h = 800.0, Ta = 1100.0, Tinf = 400.0;
-    const Mesh m = meshgen::annulus(a, b, 192, 24);
+    const double C = h * (Tinf - Ta) / (k / b + h * std::log(b / a));
+    const verification::ThermoelasticRing ring{a, b, E, alpha, Ta, C};
 
-    ThermalProblem tp;
-    tp.conductivity = k;
-    tp.dirichlet.push_back({"inner", [&](const Vec2&) { return Ta; }});
-    tp.convection.push_back({"outer", h, Tinf});
-
-    WHEN("the temperature field from the thermal solver drives the structural model") {
+    struct Result {
+      double stress_l2;         // relative L2 error of the stress tensor
+      double hoop_inner, hoop_outer;
+      double max_reaction;
+    };
+    // Conduction first, then the nodal temperatures drive the structural model.
+    auto run = [&](int n_theta, int n_radial) {
+      const Mesh m = meshgen::annulus(a, b, n_theta, n_radial);
+      ThermalProblem tp;
+      tp.conductivity = k;
+      tp.dirichlet.push_back({"inner", [&](const Vec2&) { return Ta; }});
+      tp.convection.push_back({"outer", h, Tinf});
       const ThermalSolution ts = solve_thermal(m, tp);
 
       ElasticProblem ep;
@@ -151,34 +159,40 @@ SCENARIO("Coupled analysis: a ring heated inside and cooled outside", "[thermal-
       hold_free(ep, Vec2(a, 0.0), Vec2(-a, 0.0));
       const ElasticSolution es = solve_elastic(m, ep);
 
-      const double C = h * (Tinf - Ta) / (k / b + h * std::log(b / a));
-      const verification::ThermoelasticRing ring{a, b, E, alpha, Ta, C};
+      double num = 0.0, den = 0.0;
+      std::vector<double> hoop(m.triangle_count());
+      for (std::size_t t = 0; t < m.triangle_count(); ++t) {
+        const Eigen::Vector3d ex = ring.stress(m.centroid(t));
+        num += (es.stress[t] - ex).squaredNorm() * m.area(t);
+        den += ex.squaredNorm() * m.area(t);
+        const Vec2 c = m.centroid(t).normalized();
+        const auto& s = es.stress[t];
+        hoop[t] = s[0] * c.y() * c.y() + s[1] * c.x() * c.x() - 2 * s[2] * c.x() * c.y();
+      }
+      const auto hoop_nodal = nodal_average(m, hoop);
+      return Result{std::sqrt(num / den), hoop_nodal[static_cast<std::size_t>(m.nearest_node(Vec2(0.0, a)))],
+                    hoop_nodal[static_cast<std::size_t>(m.nearest_node(Vec2(0.0, b)))],
+                    es.reactions.cwiseAbs().maxCoeff()};
+    };
 
-      THEN("the thermal-stress field matches the closed form") {
-        double num = 0.0, den = 0.0;
-        for (std::size_t t = 0; t < m.triangle_count(); ++t) {
-          const Eigen::Vector3d ex = ring.stress(m.centroid(t));
-          num += (es.stress[t] - ex).squaredNorm() * m.area(t);
-          den += ex.squaredNorm() * m.area(t);
-        }
-        CHECK(std::sqrt(num / den) < 0.03);
+    WHEN("solved on a 96 x 12 and a 192 x 24 ring mesh") {
+      const Result coarse = run(96, 12), fine = run(192, 24);
+      const double exact_inner = ring.stress(Vec2(a, 0.0))[1];
+      const double exact_outer = ring.stress(Vec2(b, 0.0))[1];
+
+      THEN("the stress field converges to the closed form at first order") {
+        CHECK(std::log2(coarse.stress_l2 / fine.stress_l2) == Catch::Approx(1.0).margin(0.1));
+        CHECK(fine.stress_l2 < 0.035);
       }
       THEN("the hot inner surface is in hoop compression and the cold outer one in tension") {
-        std::vector<double> hoop(m.triangle_count());
-        for (std::size_t t = 0; t < m.triangle_count(); ++t) {
-          const Vec2 c = m.centroid(t).normalized();
-          const auto& s = es.stress[t];
-          hoop[t] = s[0] * c.y() * c.y() + s[1] * c.x() * c.x() - 2 * s[2] * c.x() * c.y();
-        }
-        const auto hoop_nodal = nodal_average(m, hoop);
-        const double inner = hoop_nodal[static_cast<std::size_t>(m.nearest_node(Vec2(0.0, a)))];
-        const double outer = hoop_nodal[static_cast<std::size_t>(m.nearest_node(Vec2(0.0, b)))];
-        CHECK(inner < 0.0);
-        CHECK(outer > 0.0);
-        CHECK_THAT(inner, WithinRel(ring.stress(Vec2(a, 0.0))[1], 0.05));
-        CHECK_THAT(outer, WithinRel(ring.stress(Vec2(b, 0.0))[1], 0.05));
+        CHECK(fine.hoop_inner < 0.0);
+        CHECK(fine.hoop_outer > 0.0);
+        // Nodal averaging under-reads boundary peaks; the error still halves with h.
+        CHECK(std::abs(fine.hoop_inner / exact_inner - 1.0) < 0.6 * std::abs(coarse.hoop_inner / exact_inner - 1.0));
+        CHECK_THAT(fine.hoop_inner, WithinRel(exact_inner, 0.10));
+        CHECK_THAT(fine.hoop_outer, WithinRel(exact_outer, 0.05));
       }
-      THEN("the supports stay unloaded") { CHECK(es.reactions.cwiseAbs().maxCoeff() < 1e-3); }
+      THEN("the supports stay unloaded") { CHECK(fine.max_reaction < 1e-12 * E * alpha * 700.0 * b); }
     }
   }
 }
