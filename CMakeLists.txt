@@ -12,6 +12,12 @@ endif()
 
 option(BLADEFEM_BUILD_TESTS "Build the Catch2 test suite" ON)
 option(BLADEFEM_WERROR "Treat compiler warnings as errors" OFF)
+option(BLADEFEM_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+if(BLADEFEM_SANITIZE AND NOT MSVC)
+  add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
+  add_link_options(-fsanitize=address,undefined)
+endif()
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Boost 1.71 REQUIRED COMPONENTS program_options)
