@@ -196,3 +196,99 @@ SCENARIO("Coupled analysis: a ring heated inside and cooled outside", "[thermal-
     }
   }
 }
+
+SCENARIO("Generalized plane strain: a free prismatic bar heated uniformly", "[thermal-stress][gps]") {
+  GIVEN("a 0.04 x 0.02 m section heated by 500 K") {
+    const Mesh m = meshgen::rectangle(0.0, 0.0, 0.04, 0.02, 8, 4);
+    ElasticProblem prob;
+    prob.material = {E, nu, alpha};
+    prob.model = PlaneModel::GeneralizedStrain;
+    prob.temperature = nodal(m, [](const Vec2&) { return 800.0; });
+    prob.T_ref = 300.0;
+    hold_free(prob, Vec2(0, 0), Vec2(0.04, 0));
+
+    WHEN("it is solved") {
+      const ElasticSolution s = solve_elastic(m, prob);
+      THEN("it lengthens by alpha dT with no stress in any direction") {
+        CHECK_THAT(s.axial_strain[0], WithinRel(alpha * 500.0, 1e-9));
+        CHECK_THAT(s.axial_strain[1], WithinAbs(0.0, 1e-12));
+        CHECK_THAT(s.axial_strain[2], WithinAbs(0.0, 1e-12));
+        CHECK(max_abs_stress(s) < 1e-6 * E * alpha * 500.0);
+        for (double szz : s.stress_zz) CHECK_THAT(szz, WithinAbs(0.0, 1e-6 * E * alpha * 500.0));
+        const int corner = m.nearest_node(Vec2(0.04, 0.02));
+        CHECK_THAT(s.node_displacement(corner).x(), WithinRel(alpha * 500.0 * 0.04, 1e-9));
+      }
+    }
+  }
+}
+
+SCENARIO("Generalized plane strain: a linear temperature bends the bar freely", "[thermal-stress][gps]") {
+  GIVEN("T rising by 400 K across the section in x") {
+    const Mesh m = meshgen::rectangle(0.0, 0.0, 1.0, 1.0, 16, 16);
+    ElasticProblem prob;
+    prob.material = {E, nu, alpha};
+    prob.model = PlaneModel::GeneralizedStrain;
+    prob.temperature = nodal(m, [](const Vec2& p) { return 300.0 + 400.0 * p.x(); });
+    prob.T_ref = 300.0;
+    hold_free(prob, Vec2(0, 0), Vec2(1, 0));
+
+    WHEN("it is solved") {
+      const ElasticSolution s = solve_elastic(m, prob);
+      THEN("the axial strain plane follows alpha T: mean extension plus curvature in x") {
+        CHECK_THAT(s.axial_strain[0], WithinRel(alpha * 200.0, 1e-3));  // T - T_ref at the centroid
+        CHECK_THAT(s.axial_strain[1], WithinRel(alpha * 400.0, 1e-2));
+        CHECK_THAT(s.axial_strain[2], WithinAbs(0.0, 1e-9));
+      }
+      THEN("the axial stress is only the small CST discretisation residue") {
+        double worst = 0.0;
+        for (double szz : s.stress_zz) worst = std::max(worst, std::abs(szz));
+        CHECK(worst < 0.05 * E * alpha * 400.0);
+      }
+    }
+  }
+}
+
+SCENARIO("Generalized plane strain: long cylinder heated inside, cooled outside", "[thermal-stress][gps][coupled][convergence]") {
+  GIVEN("the ring conduction problem treated as a long cylinder with free ends") {
+    const double a = 0.010, b = 0.025, k = 20.0, h = 800.0, Ta = 1100.0, Tinf = 400.0;
+    const double C = h * (Tinf - Ta) / (k / b + h * std::log(b / a));
+    const verification::ThermoelasticRing ring{a, b, E, alpha, Ta, C};
+
+    auto run = [&](int n_theta, int n_radial) {
+      const Mesh m = meshgen::annulus(a, b, n_theta, n_radial);
+      ThermalProblem tp;
+      tp.conductivity = k;
+      tp.dirichlet.push_back({"inner", [&](const Vec2&) { return Ta; }});
+      tp.convection.push_back({"outer", h, Tinf});
+      ElasticProblem ep;
+      ep.material = {E, nu, alpha};
+      ep.model = PlaneModel::GeneralizedStrain;
+      ep.temperature = solve_thermal(m, tp).temperature;
+      ep.T_ref = 293.15;
+      hold_free(ep, Vec2(a, 0.0), Vec2(-a, 0.0));
+      const ElasticSolution es = solve_elastic(m, ep);
+
+      double num = 0.0, den = 0.0, force = 0.0;
+      for (std::size_t t = 0; t < m.triangle_count(); ++t) {
+        const Eigen::Vector4d ex = ring.stress_long_cylinder(m.centroid(t), nu);
+        const Eigen::Vector4d fe(es.stress[t][0], es.stress[t][1], es.stress[t][2], es.stress_zz[t]);
+        num += (fe - ex).squaredNorm() * m.area(t);
+        den += ex.squaredNorm() * m.area(t);
+        force += es.stress_zz[t] * m.area(t);
+      }
+      return std::pair{std::sqrt(num / den), force};
+    };
+
+    WHEN("solved on two meshes") {
+      const auto [coarse, f_coarse] = run(96, 12);
+      const auto [fine, f_fine] = run(192, 24);
+      THEN("all four stress components converge to the closed form at first order") {
+        CHECK(std::log2(coarse / fine) == Catch::Approx(1.0).margin(0.1));
+        CHECK(fine < 0.035);
+      }
+      THEN("the ends carry no net axial force") {
+        CHECK(std::abs(f_fine) < 1e-9 * E * alpha * 700.0 * b * b);
+      }
+    }
+  }
+}
