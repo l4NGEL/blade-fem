@@ -1,0 +1,27 @@
+{
+  "name": "Cooled HP turbine blade section - steady conduction + generalized plane strain",
+  "mesh": "../meshes/blade.msh",
+  "output": "../results/blade/blade",
+
+  "thermal": {
+    "conductivity": 22.0,
+    "convection": [
+      { "boundary": "leading_edge",  "h": 3000.0, "T_inf": 1600.0 },
+      { "boundary": "pressure_side", "h": 1800.0, "T_inf": 1600.0 },
+      { "boundary": "suction_side",  "h": 1200.0, "T_inf": 1600.0 },
+      { "boundary": "cooling",       "h": 2000.0, "T_inf": 800.0 }
+    ]
+  },
+
+  "structural": {
+    "E": 1.6e11,
+    "nu": 0.30,
+    "alpha": 1.5e-5,
+    "T_ref": 293.15,
+    "model": "generalized_plane_strain",
+    "supports": [
+      { "at": [0.016500, 0.003393] },
+      { "at": [0.026500, 0.003336], "x": false }
+    ]
+  }
+}
