@@ -1,0 +1,50 @@
+cmake_minimum_required(VERSION 3.20)
+project(blade_fem VERSION 0.1.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+option(BLADEFEM_BUILD_TESTS "Build the Catch2 test suite" ON)
+option(BLADEFEM_WERROR "Treat compiler warnings as errors" OFF)
+
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Boost 1.71 REQUIRED COMPONENTS program_options)
+find_package(HDF5 REQUIRED COMPONENTS C)
+
+function(bladefem_warnings target)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /W4)
+  else()
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion)
+  endif()
+  if(BLADEFEM_WERROR)
+    target_compile_options(${target} PRIVATE $<IF:$<CXX_COMPILER_ID:MSVC>,/WX,-Werror>)
+  endif()
+endfunction()
+
+file(GLOB BLADEFEM_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+add_library(bladefem ${BLADEFEM_SOURCES})
+target_include_directories(bladefem PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(bladefem PUBLIC Eigen3::Eigen PRIVATE Boost::headers HDF5::HDF5)
+bladefem_warnings(bladefem)
+
+# Command-line tools: apps/<name>.cpp -> executable <name> (underscores become dashes).
+file(GLOB BLADEFEM_APPS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/apps/*.cpp)
+foreach(app_src ${BLADEFEM_APPS})
+  get_filename_component(app_name ${app_src} NAME_WE)
+  string(REPLACE "_" "-" app_name ${app_name})
+  add_executable(${app_name} ${app_src})
+  target_link_libraries(${app_name} PRIVATE bladefem Boost::program_options)
+  bladefem_warnings(${app_name})
+endforeach()
+
+if(BLADEFEM_BUILD_TESTS)
+  include(CTest)
+  add_subdirectory(tests)
+endif()

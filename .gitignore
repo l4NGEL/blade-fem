@@ -1,0 +1,14 @@
+# Build output
+build/
+build-*/
+cmake-build-*/
+
+# Generated results and meshes (reproducible via scripts/)
+results/
+meshes/*.msh
+
+# Local tooling
+.claude/
+.vscode/
+.idea/
+__pycache__/
