@@ -23,6 +23,13 @@ inline constexpr std::array<TrianglePoint, 7> kTriangle7{{
     {0.101286507323456, 0.101286507323456, 0.797426985353087, 0.125939180544827},
 }};
 
+// Degree-2 rule (3 interior points).
+inline constexpr std::array<TrianglePoint, 3> kTriangle3{{
+    {2.0 / 3.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 3.0},
+    {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0, 1.0 / 3.0},
+    {1.0 / 6.0, 1.0 / 6.0, 2.0 / 3.0, 1.0 / 3.0},
+}};
+
 // Gauss-Legendre on [0, 1] (3 points, exact to degree 5), weights sum to one.
 struct LinePoint {
   double s, w;

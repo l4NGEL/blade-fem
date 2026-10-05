@@ -105,4 +105,14 @@ Eigen::Vector3d ThermoelasticRing::stress(const Vec2& p) const {
   return {sr * c * c + st * s * s, sr * s * s + st * c * c, (sr - st) * s * c};
 }
 
+Eigen::Vector4d ThermoelasticRing::stress_long_cylinder(const Vec2& p, double nu) const {
+  // In-plane stresses are the thin-ring ones scaled by 1 / (1 - nu); the axial
+  // stress follows from a uniform eps_zz chosen so that the ends are force-free.
+  const Eigen::Vector3d s = stress(p) / (1.0 - nu);
+  const double Ib = T_a * (b * b - a * a) / 2.0 +
+                    C * (b * b / 2.0 * std::log(b / a) - b * b / 4.0 + a * a / 4.0);
+  const double szz = alpha * E / (1.0 - nu) * (2.0 * Ib / (b * b - a * a) - temperature(p.norm()));
+  return {s[0], s[1], s[2], szz};
+}
+
 }  // namespace bladefem::verification
