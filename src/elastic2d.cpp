@@ -5,6 +5,7 @@
 
 #include <Eigen/Dense>
 
+#include <array>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -99,14 +100,38 @@ ElasticSolution solve_elastic(const Mesh& mesh, const ElasticProblem& p) {
   validate(mesh, p);
   const int n = static_cast<int>(mesh.node_count());
   const bool thermal = p.temperature.size() != 0;
-  const Matrix3 D = constitutive(p.material, p.model);
-  LinearSystem sys(2 * n);
+  const bool gps = p.model == PlaneModel::GeneralizedStrain;
+  const double E = p.material.E, nu = p.material.nu, alpha = p.material.alpha;
 
-  const auto element = [&](std::size_t t) {
+  // Generalized plane strain appends three section-wide dofs (e0, kx, ky) after
+  // the 2N nodal displacements; kx, ky are measured from the area centroid.
+  const int g = 2 * n;
+  LinearSystem sys(gps ? g + 3 : g);
+  Vec2 origin = Vec2::Zero();
+  if (gps) {
+    for (std::size_t t = 0; t < mesh.triangle_count(); ++t) origin += mesh.area(t) * mesh.centroid(t);
+    origin /= mesh.total_area();
+  }
+
+  // 3D isotropic stiffness in (xx, yy, xy, zz) order for generalized plane strain.
+  Eigen::Matrix4d D4 = Eigen::Matrix4d::Zero();
+  if (gps) {
+    const double c = E / ((1.0 + nu) * (1.0 - 2.0 * nu));
+    D4 << c * (1 - nu), c * nu, 0, c * nu,
+          c * nu, c * (1 - nu), 0, c * nu,
+          0, 0, c * (1 - 2 * nu) / 2, 0,
+          c * nu, c * nu, 0, c * (1 - nu);
+  }
+  const Matrix3 D = gps ? Matrix3::Zero() : constitutive(p.material, p.model);
+
+  const auto element_dofs = [&](std::size_t t) {
     const auto& tri = mesh.triangles[t];
-    return std::array<int, 6>{2 * tri[0], 2 * tri[0] + 1, 2 * tri[1], 2 * tri[1] + 1, 2 * tri[2], 2 * tri[2] + 1};
+    std::vector<int> d{2 * tri[0], 2 * tri[0] + 1, 2 * tri[1], 2 * tri[1] + 1, 2 * tri[2], 2 * tri[2] + 1};
+    if (gps) d.insert(d.end(), {g, g + 1, g + 2});
+    return d;
   };
   const auto element_dT = [&](std::size_t t) {
+    if (!thermal) return 0.0;
     const auto& tri = mesh.triangles[t];
     return (p.temperature[tri[0]] + p.temperature[tri[1]] + p.temperature[tri[2]]) / 3.0 - p.T_ref;
   };
@@ -115,18 +140,46 @@ ElasticSolution solve_elastic(const Mesh& mesh, const ElasticProblem& p) {
     return strain_matrix(mesh.nodes[static_cast<std::size_t>(tri[0])], mesh.nodes[static_cast<std::size_t>(tri[1])],
                          mesh.nodes[static_cast<std::size_t>(tri[2])], mesh.area(t));
   };
+  // Strain operator of the generalized plane strain element at point x.
+  const auto B4_of = [&](const Matrix36& B, const Vec2& x) {
+    Eigen::Matrix<double, 4, 9> B4 = Eigen::Matrix<double, 4, 9>::Zero();
+    B4.topLeftCorner<3, 6>() = B;
+    B4(3, 6) = 1.0;
+    B4(3, 7) = x.x() - origin.x();
+    B4(3, 8) = x.y() - origin.y();
+    return B4;
+  };
 
   for (std::size_t t = 0; t < mesh.triangle_count(); ++t) {
     const double A = mesh.area(t);
     const Matrix36 B = B_of(t);
-    const Eigen::Matrix<double, 6, 6> Ke = A * B.transpose() * D * B;
-    const auto dofs = element(t);
-    for (int i = 0; i < 6; ++i) {
-      for (int j = 0; j < 6; ++j) sys.add_matrix(dofs[static_cast<std::size_t>(i)], dofs[static_cast<std::size_t>(j)], Ke(i, j));
+    const double dT = element_dT(t);
+    Eigen::MatrixXd Ke;
+    Eigen::VectorXd fe;
+    if (!gps) {
+      Ke = A * B.transpose() * D * B;
+      fe = A * B.transpose() * D * thermal_strain(p.material, p.model, dT);
+    } else {
+      // eps_zz varies linearly over the element, so integrate with a degree-2 rule.
+      Ke = Eigen::MatrixXd::Zero(9, 9);
+      fe = Eigen::VectorXd::Zero(9);
+      const Eigen::Vector4d eps0(alpha * dT, alpha * dT, 0.0, alpha * dT);
+      const auto& tri = mesh.triangles[t];
+      for (const auto& q : quadrature::kTriangle3) {
+        const Vec2 x = q.l0 * mesh.nodes[static_cast<std::size_t>(tri[0])] +
+                       q.l1 * mesh.nodes[static_cast<std::size_t>(tri[1])] +
+                       q.l2 * mesh.nodes[static_cast<std::size_t>(tri[2])];
+        const auto B4 = B4_of(B, x);
+        Ke += q.w * A * B4.transpose() * D4 * B4;
+        fe += q.w * A * B4.transpose() * D4 * eps0;
+      }
     }
-    if (thermal) {
-      const Vector6 fe = A * B.transpose() * D * thermal_strain(p.material, p.model, element_dT(t));
-      for (int i = 0; i < 6; ++i) sys.add_rhs(dofs[static_cast<std::size_t>(i)], fe[i]);
+    const auto dofs = element_dofs(t);
+    for (std::size_t i = 0; i < dofs.size(); ++i) {
+      for (std::size_t j = 0; j < dofs.size(); ++j) {
+        sys.add_matrix(dofs[i], dofs[j], Ke(static_cast<Eigen::Index>(i), static_cast<Eigen::Index>(j)));
+      }
+      if (thermal) sys.add_rhs(dofs[i], fe[static_cast<Eigen::Index>(i)]);
     }
   }
 
@@ -161,20 +214,31 @@ ElasticSolution solve_elastic(const Mesh& mesh, const ElasticProblem& p) {
   const LinearSystem::Solution sol = sys.solve();
 
   ElasticSolution out;
-  out.displacement = sol.u;
-  out.reactions = sol.reactions;
+  out.displacement = sol.u.head(g);
+  out.reactions = sol.reactions.head(g);
+  if (gps) {
+    out.axial_strain = sol.u.tail(3);
+    out.axial_origin = origin;
+  }
   out.stress.resize(mesh.triangle_count());
   out.stress_zz.resize(mesh.triangle_count());
   out.von_mises.resize(mesh.triangle_count());
   for (std::size_t t = 0; t < mesh.triangle_count(); ++t) {
-    const auto dofs = element(t);
-    Vector6 ue;
-    for (int i = 0; i < 6; ++i) ue[i] = sol.u[dofs[static_cast<std::size_t>(i)]];
-    const double dT = thermal ? element_dT(t) : 0.0;
-    const Eigen::Vector3d sigma = D * (B_of(t) * ue - thermal_strain(p.material, p.model, dT));
-    const double szz = p.model == PlaneModel::Strain
-                           ? p.material.nu * (sigma[0] + sigma[1]) - p.material.E * p.material.alpha * dT
-                           : 0.0;
+    const auto dofs = element_dofs(t);
+    Eigen::VectorXd ue(static_cast<Eigen::Index>(dofs.size()));
+    for (std::size_t i = 0; i < dofs.size(); ++i) ue[static_cast<Eigen::Index>(i)] = sol.u[dofs[i]];
+    const double dT = element_dT(t);
+    Eigen::Vector3d sigma;
+    double szz = 0.0;
+    if (gps) {
+      const Eigen::Vector4d eps0(alpha * dT, alpha * dT, 0.0, alpha * dT);
+      const Eigen::Vector4d s4 = D4 * (B4_of(B_of(t), mesh.centroid(t)) * ue - eps0);
+      sigma = s4.head<3>();
+      szz = s4[3];
+    } else {
+      sigma = D * (B_of(t) * ue - thermal_strain(p.material, p.model, dT));
+      if (p.model == PlaneModel::Strain) szz = nu * (sigma[0] + sigma[1]) - E * alpha * dT;
+    }
     out.stress[t] = sigma;
     out.stress_zz[t] = szz;
     out.von_mises[t] = von_mises(sigma, szz);
