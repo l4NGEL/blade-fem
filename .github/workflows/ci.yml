@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Release
+            build_type: Release
+            sanitize: OFF
+          - name: Debug + ASan/UBSan
+            build_type: Debug
+            sanitize: ON
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build libeigen3-dev libboost-dev libboost-program-options-dev \
+            libhdf5-dev catch2 gmsh python3-numpy python3-matplotlib python3-h5py
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBLADEFEM_WERROR=ON
+          -DBLADEFEM_SANITIZE=${{ matrix.sanitize }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit, regression and convergence tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Verification studies
+        if: matrix.build_type == 'Release'
+        run: ./build/bladefem-verify --out results/verification
+
+      - name: Blade case (mesh with Gmsh, solve, mesh-independence study)
+        if: matrix.build_type == 'Release'
+        run: |
+          python3 scripts/make_blade_geo.py
+          gmsh meshes/blade.geo -2 -format msh22 -o meshes/blade.msh > /dev/null
+          ./build/blade-fem cases/blade.json
+          python3 scripts/blade_mesh_study.py --bin build/blade-fem
+          git diff --exit-code meshes/blade.geo  # committed geometry must match the generator
+
+      - name: Upload results
+        if: matrix.build_type == 'Release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            results/verification/*.csv
+            results/mesh_study/mesh_study.csv
+            results/blade/
