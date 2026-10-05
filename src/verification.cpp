@@ -90,4 +90,19 @@ Eigen::Vector3d KirschPlate::stress(const Vec2& p) const {
           s0 * (-a2 * (0.5 * s2 + s4) + 1.5 * a4 * s4)};
 }
 
+double ThermoelasticRing::temperature(double r) const { return T_a + C * std::log(r / a); }
+
+Eigen::Vector3d ThermoelasticRing::stress(const Vec2& p) const {
+  const double r = p.norm();
+  // I(r) = integral_a^r T(rho) rho d rho for T = T_a + C ln(rho / a)
+  const auto I = [&](double x) {
+    return T_a * (x * x - a * a) / 2.0 + C * (x * x / 2.0 * std::log(x / a) - x * x / 4.0 + a * a / 4.0);
+  };
+  const double Ib = I(b), Ir = I(r), r2 = r * r, k = b * b - a * a;
+  const double sr = alpha * E * ((r2 - a * a) / (k * r2) * Ib - Ir / r2);
+  const double st = alpha * E * ((r2 + a * a) / (k * r2) * Ib + Ir / r2 - temperature(r));
+  const double c = p.x() / r, s = p.y() / r;
+  return {sr * c * c + st * s * s, sr * s * s + st * c * c, (sr - st) * s * c};
+}
+
 }  // namespace bladefem::verification
