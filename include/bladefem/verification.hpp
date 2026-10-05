@@ -46,4 +46,14 @@ struct KirschPlate {
   Eigen::Vector3d stress(const Vec2& p) const;  // sxx, syy, sxy
 };
 
+// Free thin ring a <= r <= b (plane stress) carrying the steady conduction
+// profile T(r) = T_a + C ln(r / a). Thermal stresses from Timoshenko & Goodier,
+// Theory of Elasticity, sec. 151; they depend only on the non-uniform part of T.
+struct ThermoelasticRing {
+  double a, b, E, alpha, T_a, C;
+
+  double temperature(double r) const;
+  Eigen::Vector3d stress(const Vec2& p) const;  // sxx, syy, sxy
+};
+
 }  // namespace bladefem::verification
