@@ -1,7 +1,13 @@
 #pragma once
 
-// Linear elasticity with constant-strain triangles (CST), plane stress or plane
-// strain, optionally loaded by a nodal temperature field (thermal strain).
+// Linear elasticity with constant-strain triangles (CST), optionally loaded by a
+// nodal temperature field (thermal strain). Three 2D idealisations:
+//   Stress             thin plate, sigma_zz = 0
+//   Strain             long body with eps_zz = 0 (ends fully restrained)
+//   GeneralizedStrain  long prismatic body with free ends: eps_zz = e0 + kx x + ky y,
+//                      where (e0, kx, ky) are solved for so that the axial force and
+//                      both bending moments vanish. The right model for a turbine
+//                      blade section, whose thermal stress is mostly axial.
 // Results are per unit thickness.
 
 #include <bladefem/mesh.hpp>
@@ -20,7 +26,7 @@ struct ElasticMaterial {
   double alpha = 0.0;  // thermal expansion coefficient [1/K]
 };
 
-enum class PlaneModel { Stress, Strain };
+enum class PlaneModel { Stress, Strain, GeneralizedStrain };
 
 struct ElasticProblem {
   struct Displacement {
@@ -53,9 +59,14 @@ struct ElasticProblem {
 struct ElasticSolution {
   Eigen::VectorXd displacement;         // 2N, interleaved (ux0, uy0, ux1, ...)
   std::vector<Eigen::Vector3d> stress;  // per triangle: sxx, syy, sxy
-  std::vector<double> stress_zz;        // per triangle (non-zero in plane strain only)
+  std::vector<double> stress_zz;        // per triangle (zero in plane stress)
   std::vector<double> von_mises;        // per triangle
   Eigen::VectorXd reactions;            // 2N, non-zero at constrained dofs
+
+  // Generalized plane strain only: eps_zz = e0 + kx (x - x0) + ky (y - y0),
+  // with (x0, y0) the area centroid of the section.
+  Eigen::Vector3d axial_strain = Eigen::Vector3d::Zero();  // e0, kx, ky
+  Vec2 axial_origin = Vec2::Zero();
 
   Vec2 node_displacement(int n) const { return {displacement[2 * n], displacement[2 * n + 1]}; }
   Vec2 total_reaction() const;

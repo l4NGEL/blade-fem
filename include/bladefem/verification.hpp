@@ -53,7 +53,11 @@ struct ThermoelasticRing {
   double a, b, E, alpha, T_a, C;
 
   double temperature(double r) const;
-  Eigen::Vector3d stress(const Vec2& p) const;  // sxx, syy, sxy
+  // Thin ring (plane stress): sxx, syy, sxy.
+  Eigen::Vector3d stress(const Vec2& p) const;
+  // Long cylinder with free ends (generalized plane strain, sec. 150):
+  // sxx, syy, sxy, szz.
+  Eigen::Vector4d stress_long_cylinder(const Vec2& p, double nu) const;
 };
 
 }  // namespace bladefem::verification
