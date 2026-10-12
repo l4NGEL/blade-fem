@@ -147,6 +147,8 @@ SCENARIO("Invalid bar definitions are rejected", "[fem1d]") {
     BarProblem p;
     p.elements = 0;
     p.left = EndCondition::temperature(0.0);
-    THEN("solving it throws") { CHECK_THROWS_AS(solve(p), std::invalid_argument); }
+    THEN("solving it throws") {
+      CHECK_THROWS_AS(solve(p), std::invalid_argument);
+    }
   }
 }

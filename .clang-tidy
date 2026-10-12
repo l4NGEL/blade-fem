@@ -1,0 +1,21 @@
+# Static analysis run in CI on src/ and apps/ (tests are dominated by Catch2 macros).
+Checks: >
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  performance-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -modernize-avoid-c-arrays,
+  misc-*,
+  -misc-include-cleaner,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  readability-container-size-empty,
+  readability-redundant-*,
+  readability-inconsistent-declaration-parameter-name,
+  readability-make-member-function-const
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*/include/bladefem/.*'
+FormatStyle: file

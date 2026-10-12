@@ -14,7 +14,9 @@ namespace fs = std::filesystem;
 
 namespace {
 
-[[noreturn]] void fail(const std::string& what) { throw std::runtime_error("case: " + what); }
+[[noreturn]] void fail(const std::string& what) {
+  throw std::runtime_error("case: " + what);
+}
 
 template <class T>
 T required(const pt::ptree& node, const std::string& key, const std::string& where) {
@@ -71,9 +73,12 @@ PlaneModel parse_plane_model(const std::string& name) {
 
 std::string to_string(PlaneModel model) {
   switch (model) {
-    case PlaneModel::Stress: return "plane_stress";
-    case PlaneModel::Strain: return "plane_strain";
-    case PlaneModel::GeneralizedStrain: return "generalized_plane_strain";
+    case PlaneModel::Stress:
+      return "plane_stress";
+    case PlaneModel::Strain:
+      return "plane_strain";
+    case PlaneModel::GeneralizedStrain:
+      return "generalized_plane_strain";
   }
   return "?";
 }
@@ -100,8 +105,8 @@ CaseConfig parse_case(std::istream& json, const std::string& base_dir) {
       t.temperature.push_back({required<std::string>(n, "boundary", at), required<double>(n, "T", at)});
     });
     for_each_item(*th, "convection", w, [&](const pt::ptree& n, const std::string& at) {
-      t.convection.push_back({required<std::string>(n, "boundary", at), required<double>(n, "h", at),
-                              required<double>(n, "T_inf", at)});
+      t.convection.push_back(
+          {required<std::string>(n, "boundary", at), required<double>(n, "h", at), required<double>(n, "T_inf", at)});
     });
     for_each_item(*th, "flux", w, [&](const pt::ptree& n, const std::string& at) {
       t.flux.push_back({required<std::string>(n, "boundary", at), required<double>(n, "q_in", at)});
@@ -118,8 +123,8 @@ CaseConfig parse_case(std::istream& json, const std::string& base_dir) {
     s.model = parse_plane_model(st->get<std::string>("model", "plane_stress"));
     s.T_ref = optional_value<double>(*st, "T_ref", w, 293.15);
     for_each_item(*st, "supports", w, [&](const pt::ptree& n, const std::string& at) {
-      s.supports.push_back({required_vec2(n, "at", at), optional_value<bool>(n, "x", at, true),
-                            optional_value<bool>(n, "y", at, true)});
+      s.supports.push_back(
+          {required_vec2(n, "at", at), optional_value<bool>(n, "x", at, true), optional_value<bool>(n, "y", at, true)});
     });
     for_each_item(*st, "displacement", w, [&](const pt::ptree& n, const std::string& at) {
       CaseConfig::Structural::Fixed f{required<std::string>(n, "boundary", at), std::nullopt, std::nullopt};

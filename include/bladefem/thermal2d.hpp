@@ -30,7 +30,7 @@ struct ThermalProblem {
   };
   struct HeatFlux {
     std::string boundary;
-    double q_in;   // [W/m^2], into the body
+    double q_in;  // [W/m^2], into the body
   };
 
   double conductivity = 1.0;  // k [W/(m K)]

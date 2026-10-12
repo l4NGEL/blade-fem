@@ -66,7 +66,9 @@ SCENARIO("Manufactured solution: convergence rates of linear triangles", "[therm
                   kPi * std::sin(kPi * p.x()) * std::cos(kPi * p.y()));
     };
 
-    struct Level { double h, l2, h1; };
+    struct Level {
+      double h, l2, h1;
+    };
     auto run = [&](int n) {
       const Mesh m = meshgen::rectangle(0.0, 0.0, 1.0, 1.0, n, n);
       ThermalProblem prob = all_dirichlet([](const Vec2&) { return 0.0; });
@@ -151,11 +153,15 @@ SCENARIO("Ill-posed thermal problems are rejected", "[thermal]") {
   GIVEN("a boundary condition on a boundary that does not exist") {
     ThermalProblem prob;
     prob.convection.push_back({"inlet", 10.0, 300.0});
-    THEN("solving throws") { CHECK_THROWS_AS(solve_thermal(m, prob), std::out_of_range); }
+    THEN("solving throws") {
+      CHECK_THROWS_AS(solve_thermal(m, prob), std::out_of_range);
+    }
   }
   GIVEN("only flux conditions, so the temperature level is free") {
     ThermalProblem prob;
     prob.flux.push_back({"left", 1.0});
-    THEN("solving throws") { CHECK_THROWS_AS(solve_thermal(m, prob), std::runtime_error); }
+    THEN("solving throws") {
+      CHECK_THROWS_AS(solve_thermal(m, prob), std::runtime_error);
+    }
   }
 }

@@ -7,7 +7,9 @@
 namespace bladefem {
 
 LinearSystem::LinearSystem(int dofs)
-    : n_(dofs), f_(Eigen::VectorXd::Zero(dofs)), fixed_(static_cast<std::size_t>(dofs), false),
+    : n_(dofs),
+      f_(Eigen::VectorXd::Zero(dofs)),
+      fixed_(static_cast<std::size_t>(dofs), false),
       fixed_value_(Eigen::VectorXd::Zero(dofs)) {
   if (dofs < 1) throw std::invalid_argument("LinearSystem: need at least one dof");
 }

@@ -65,10 +65,13 @@ SCENARIO("Quarter plate with a circular hole", "[mesh]") {
       for (int n : m.boundary_nodes("hole")) {
         CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].norm(), WithinRel(1.0, 1e-13));
       }
-      for (int n : m.boundary_nodes("right")) CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].x(), WithinRel(5.0, 1e-13));
+      for (int n : m.boundary_nodes("right"))
+        CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].x(), WithinRel(5.0, 1e-13));
       for (int n : m.boundary_nodes("top")) CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].y(), WithinRel(5.0, 1e-13));
-      for (int n : m.boundary_nodes("symmetry_x")) CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].x(), WithinAbs(0.0, 1e-13));
-      for (int n : m.boundary_nodes("symmetry_y")) CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].y(), WithinAbs(0.0, 1e-13));
+      for (int n : m.boundary_nodes("symmetry_x"))
+        CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].x(), WithinAbs(0.0, 1e-13));
+      for (int n : m.boundary_nodes("symmetry_y"))
+        CHECK_THAT(m.nodes[static_cast<std::size_t>(n)].y(), WithinAbs(0.0, 1e-13));
     }
     THEN("the area approaches L^2 - pi a^2 / 4 (polygonal hole)") {
       for (std::size_t t = 0; t < m.triangle_count(); ++t) CHECK(m.area(t) > 0.0);

@@ -76,12 +76,12 @@ Vec2 ElasticSolution::total_reaction() const {
 
 double von_mises(const Eigen::Vector3d& s, double szz) {
   const double sx = s[0], sy = s[1], txy = s[2];
-  return std::sqrt(0.5 * ((sx - sy) * (sx - sy) + (sy - szz) * (sy - szz) + (szz - sx) * (szz - sx)) +
-                   3.0 * txy * txy);
+  return std::sqrt(0.5 * ((sx - sy) * (sx - sy) + (sy - szz) * (sy - szz) + (szz - sx) * (szz - sx)) + 3.0 * txy * txy);
 }
 
 std::vector<double> nodal_average(const Mesh& mesh, const std::vector<double>& cell) {
-  if (cell.size() != mesh.triangle_count()) throw std::invalid_argument("nodal_average: one value per triangle expected");
+  if (cell.size() != mesh.triangle_count())
+    throw std::invalid_argument("nodal_average: one value per triangle expected");
   std::vector<double> sum(mesh.node_count(), 0.0), weight(mesh.node_count(), 0.0);
   for (std::size_t t = 0; t < mesh.triangle_count(); ++t) {
     const double A = mesh.area(t);
@@ -117,10 +117,8 @@ ElasticSolution solve_elastic(const Mesh& mesh, const ElasticProblem& p) {
   Eigen::Matrix4d D4 = Eigen::Matrix4d::Zero();
   if (gps) {
     const double c = E / ((1.0 + nu) * (1.0 - 2.0 * nu));
-    D4 << c * (1 - nu), c * nu, 0, c * nu,
-          c * nu, c * (1 - nu), 0, c * nu,
-          0, 0, c * (1 - 2 * nu) / 2, 0,
-          c * nu, c * nu, 0, c * (1 - nu);
+    D4 << c * (1 - nu), c * nu, 0, c * nu, c * nu, c * (1 - nu), 0, c * nu, 0, 0, c * (1 - 2 * nu) / 2, 0, c * nu,
+        c * nu, 0, c * (1 - nu);
   }
   const Matrix3 D = gps ? Matrix3::Zero() : constitutive(p.material, p.model);
 

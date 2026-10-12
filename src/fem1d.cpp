@@ -9,9 +9,15 @@
 
 namespace bladefem::fem1d {
 
-EndCondition EndCondition::temperature(double T) { return {Kind::Temperature, T, 0.0}; }
-EndCondition EndCondition::heat_flux(double q_in) { return {Kind::HeatFlux, q_in, 0.0}; }
-EndCondition EndCondition::convection(double h, double T_inf) { return {Kind::Convection, T_inf, h}; }
+EndCondition EndCondition::temperature(double T) {
+  return {Kind::Temperature, T, 0.0};
+}
+EndCondition EndCondition::heat_flux(double q_in) {
+  return {Kind::HeatFlux, q_in, 0.0};
+}
+EndCondition EndCondition::convection(double h, double T_inf) {
+  return {Kind::Convection, T_inf, h};
+}
 
 double BarSolution::at(double xq) const {
   if (x.empty()) throw std::logic_error("BarSolution::at on empty solution");
@@ -34,8 +40,7 @@ void validate(const BarProblem& p) {
   if (!(p.length > 0.0)) throw std::invalid_argument("fem1d: length must be positive");
   if (!(p.conductivity > 0.0)) throw std::invalid_argument("fem1d: conductivity must be positive");
   const auto anchors = [](const EndCondition& c) {
-    return c.kind == EndCondition::Kind::Temperature ||
-           (c.kind == EndCondition::Kind::Convection && c.h > 0.0);
+    return c.kind == EndCondition::Kind::Temperature || (c.kind == EndCondition::Kind::Convection && c.h > 0.0);
   };
   if (!anchors(p.left) && !anchors(p.right)) {
     throw std::invalid_argument(
@@ -85,12 +90,15 @@ BarSolution solve(const BarProblem& p) {
   // Natural (flux, convection) conditions enter the weak form directly.
   const auto apply_natural = [&](const EndCondition& c, int node) {
     switch (c.kind) {
-      case EndCondition::Kind::HeatFlux: f[node] += c.value; break;
+      case EndCondition::Kind::HeatFlux:
+        f[node] += c.value;
+        break;
       case EndCondition::Kind::Convection:
         trip.emplace_back(node, node, c.h);
         f[node] += c.h * c.value;
         break;
-      case EndCondition::Kind::Temperature: break;
+      case EndCondition::Kind::Temperature:
+        break;
     }
   };
   apply_natural(p.left, 0);

@@ -25,8 +25,8 @@ struct EndCondition {
 struct BarProblem {
   double length = 1.0;
   int elements = 10;
-  double conductivity = 1.0;              // k [W/(m K)]
-  std::function<double(double)> source;   // Q(x) [W/m^3]; empty means no source
+  double conductivity = 1.0;             // k [W/(m K)]
+  std::function<double(double)> source;  // Q(x) [W/m^3]; empty means no source
   EndCondition left = EndCondition::heat_flux(0.0);
   EndCondition right = EndCondition::heat_flux(0.0);
 };

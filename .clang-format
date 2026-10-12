@@ -1,0 +1,8 @@
+# Google style, widened to 120 columns for the dense numeric code.
+BasedOnStyle: Google
+ColumnLimit: 120
+IncludeBlocks: Preserve
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: All
