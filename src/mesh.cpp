@@ -71,7 +71,8 @@ double Mesh::total_area() const {
 Vec2 Mesh::centroid(std::size_t t) const {
   const auto& tri = triangles[t];
   return (nodes[static_cast<std::size_t>(tri[0])] + nodes[static_cast<std::size_t>(tri[1])] +
-          nodes[static_cast<std::size_t>(tri[2])]) / 3.0;
+          nodes[static_cast<std::size_t>(tri[2])]) /
+         3.0;
 }
 
 int Mesh::nearest_node(const Vec2& p) const {

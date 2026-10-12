@@ -24,7 +24,7 @@ struct Mesh {
   std::vector<std::array<int, 3>> triangles;  // counter-clockwise node order
   std::vector<int> triangle_tags;
   std::vector<BoundaryEdge> edges;
-  std::map<std::string, int> names;           // physical/boundary name -> tag
+  std::map<std::string, int> names;  // physical/boundary name -> tag
 
   std::size_t node_count() const { return nodes.size(); }
   std::size_t triangle_count() const { return triangles.size(); }

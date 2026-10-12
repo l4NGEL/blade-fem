@@ -14,8 +14,7 @@ namespace bladefem::verification {
 
 // ||T_h - T||_L2 for a nodal piecewise-linear field, integrated with a
 // 7-point (degree 5) triangle rule.
-double l2_error(const Mesh& mesh, const Eigen::VectorXd& nodal,
-                const std::function<double(const Vec2&)>& exact);
+double l2_error(const Mesh& mesh, const Eigen::VectorXd& nodal, const std::function<double(const Vec2&)>& exact);
 
 // |T_h - T|_H1 (gradient seminorm).
 double h1_seminorm_error(const Mesh& mesh, const Eigen::VectorXd& nodal,

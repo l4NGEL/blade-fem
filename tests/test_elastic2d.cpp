@@ -20,7 +20,8 @@ Mesh distorted_square(int n, double amount) {
   for (std::size_t i = 0; i < m.node_count(); ++i) {
     Vec2& p = m.nodes[i];
     if (p.x() < 1e-12 || p.x() > 1.0 - 1e-12 || p.y() < 1e-12 || p.y() > 1.0 - 1e-12) continue;
-    p += amount * h * Vec2(std::sin(12.9898 * static_cast<double>(i) + 78.233), std::cos(39.346 * static_cast<double>(i) + 11.135));
+    p += amount * h *
+         Vec2(std::sin(12.9898 * static_cast<double>(i) + 78.233), std::cos(39.346 * static_cast<double>(i) + 11.135));
   }
   return m;
 }
@@ -109,7 +110,9 @@ SCENARIO("Timoshenko cantilever: convergence to the elasticity solution", "[elas
   GIVEN("L = 48, D = 12, E = 3e7, nu = 0.3, P = 1000 with exact end conditions") {
     const verification::TimoshenkoBeam beam{48.0, 12.0, 3.0e7, 0.3, 1000.0};
 
-    struct Level { double h, disp_l2, tip_error; };
+    struct Level {
+      double h, disp_l2, tip_error;
+    };
     auto run = [&](int nx) {
       const Mesh m = meshgen::rectangle(0.0, -beam.D / 2, beam.L, beam.D / 2, nx, nx / 4);
       ElasticProblem prob;
@@ -207,6 +210,8 @@ SCENARIO("A structure without enough supports", "[elastic]") {
     const Mesh m = meshgen::rectangle(0.0, 0.0, 1.0, 1.0, 1, 1);
     ElasticProblem prob;
     prob.material = {1e9, 0.5, 0.0};
-    THEN("solving is refused") { CHECK_THROWS_AS(solve_elastic(m, prob), std::invalid_argument); }
+    THEN("solving is refused") {
+      CHECK_THROWS_AS(solve_elastic(m, prob), std::invalid_argument);
+    }
   }
 }

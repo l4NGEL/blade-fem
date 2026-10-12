@@ -6,6 +6,7 @@
 #include <bladefem/case_config.hpp>
 #include <bladefem/case_runner.hpp>
 #include <bladefem/mesh.hpp>
+#include <bladefem/version.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -17,11 +18,10 @@ namespace po = boost::program_options;
 
 int main(int argc, char** argv) {
   po::options_description visible("Options");
-  visible.add_options()
-      ("help,h", "show this help")
-      ("mesh,m", po::value<std::string>(), "override the mesh path given in the case file")
-      ("output,o", po::value<std::string>(), "override the result basename (<base>.h5 / <base>.xdmf)")
-      ("no-output", "solve and report without writing result files");
+  visible.add_options()("help,h", "show this help")("version", "print the version and exit")(
+      "mesh,m", po::value<std::string>(), "override the mesh path given in the case file")(
+      "output,o", po::value<std::string>(), "override the result basename (<base>.h5 / <base>.xdmf)")(
+      "no-output", "solve and report without writing result files");
   po::options_description hidden;
   hidden.add_options()("case", po::value<std::string>(), "case file");
   po::options_description all;
@@ -36,6 +36,10 @@ int main(int argc, char** argv) {
   } catch (const po::error& e) {
     std::cerr << "blade-fem: " << e.what() << "\n";
     return 2;
+  }
+  if (vm.count("version")) {
+    std::cout << "blade-fem " << bladefem::kVersion << '\n';
+    return 0;
   }
   if (vm.count("help") || !vm.count("case")) {
     std::cout << "Usage: blade-fem <case.json> [options]\n\n"

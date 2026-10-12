@@ -28,7 +28,9 @@ class Handle {
   herr_t (*close_)(hid_t);
 };
 
-void silence_hdf5_errors() { H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr); }
+void silence_hdf5_errors() {
+  H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+}
 
 void write_dataset(hid_t file, const std::string& path, hid_t file_type, hid_t mem_type, const void* data,
                    std::size_t rows, std::size_t cols) {

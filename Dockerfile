@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build git ca-certificates \
         libeigen3-dev libboost-dev libboost-program-options-dev \
         libhdf5-dev catch2 \
-        gmsh \
+        gmsh clang-format clang-tidy gcovr \
         python3 python3-numpy python3-matplotlib python3-h5py \
     && rm -rf /var/lib/apt/lists/*
 

@@ -64,8 +64,7 @@ SCENARIO("Writing results to HDF5 with an XDMF descriptor", "[hdf5]") {
     const Mesh m = meshgen::rectangle(0.0, 0.0, 1.0, 1.0, 1, 1);
     THEN("writing is refused before anything is created") {
       const std::string base = (fs::temp_directory_path() / "bladefem_bad").string();
-      CHECK_THROWS_AS(write_results(base, m, {{"T", Field::Location::Node, 1, {1.0, 2.0}}}),
-                      std::invalid_argument);
+      CHECK_THROWS_AS(write_results(base, m, {{"T", Field::Location::Node, 1, {1.0, 2.0}}}), std::invalid_argument);
     }
   }
 

@@ -31,8 +31,8 @@ enum class PlaneModel { Stress, Strain, GeneralizedStrain };
 struct ElasticProblem {
   struct Displacement {
     std::string boundary;
-    int component;                              // 0 = x, 1 = y
-    std::function<double(const Vec2&)> value;   // [m]
+    int component;                             // 0 = x, 1 = y
+    std::function<double(const Vec2&)> value;  // [m]
   };
   // Fixes the node nearest to `at`; used to remove rigid-body motion of free bodies.
   struct PointSupport {

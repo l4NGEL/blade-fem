@@ -17,7 +17,9 @@ constexpr int kQuad4 = 3;
 constexpr int kTriangle6 = 9;
 constexpr int kLine3 = 8;
 
-[[noreturn]] void fail(const std::string& what) { throw std::runtime_error("read_gmsh: " + what); }
+[[noreturn]] void fail(const std::string& what) {
+  throw std::runtime_error("read_gmsh: " + what);
+}
 
 void expect_end(std::istream& in, const std::string& section) {
   std::string line;

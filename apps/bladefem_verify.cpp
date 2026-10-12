@@ -7,6 +7,7 @@
 #include <bladefem/mesh.hpp>
 #include <bladefem/thermal2d.hpp>
 #include <bladefem/verification.hpp>
+#include <bladefem/version.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -74,7 +75,8 @@ std::vector<Row> heat_manufactured() {
   const double k = 4.0;
   const auto exact = [](const Vec2& p) { return std::sin(kPi * p.x()) * std::sin(kPi * p.y()); };
   const auto grad = [](const Vec2& p) {
-    return Vec2(kPi * std::cos(kPi * p.x()) * std::sin(kPi * p.y()), kPi * std::sin(kPi * p.x()) * std::cos(kPi * p.y()));
+    return Vec2(kPi * std::cos(kPi * p.x()) * std::sin(kPi * p.y()),
+                kPi * std::sin(kPi * p.x()) * std::cos(kPi * p.y()));
   };
   std::vector<Row> rows;
   for (int n : {8, 16, 32, 64, 128}) {
@@ -82,10 +84,12 @@ std::vector<Row> heat_manufactured() {
     ThermalProblem p;
     p.conductivity = k;
     p.source = [&](const Vec2& x) { return 2.0 * kPi * kPi * k * exact(x); };
-    for (const char* side : {"bottom", "right", "top", "left"}) p.dirichlet.push_back({side, [](const Vec2&) { return 0.0; }});
+    for (const char* side : {"bottom", "right", "top", "left"})
+      p.dirichlet.push_back({side, [](const Vec2&) { return 0.0; }});
     const auto s = solve_thermal(m, p);
-    rows.push_back({m.max_edge_length(),
-                    {verification::l2_error(m, s.temperature, exact), verification::h1_seminorm_error(m, s.temperature, grad)}});
+    rows.push_back(
+        {m.max_edge_length(),
+         {verification::l2_error(m, s.temperature, exact), verification::h1_seminorm_error(m, s.temperature, grad)}});
   }
   return rows;
 }
@@ -183,7 +187,8 @@ std::vector<Row> cylinder_gps() {
     }
     const double szz_inner = nodal_average(m, es.stress_zz)[static_cast<std::size_t>(m.nearest_node(Vec2(a, 0.0)))];
     const double exact_inner = ring.stress_long_cylinder(Vec2(a, 0.0), nu)[3];
-    rows.push_back({m.max_edge_length(), {std::sqrt(num / den), std::abs(szz_inner / exact_inner - 1.0), szz_inner / 1e6}});
+    rows.push_back(
+        {m.max_edge_length(), {std::sqrt(num / den), std::abs(szz_inner / exact_inner - 1.0), szz_inner / 1e6}});
   }
   return rows;
 }
@@ -192,7 +197,7 @@ std::vector<Row> cylinder_gps() {
 
 int main(int argc, char** argv) {
   po::options_description opts("Options");
-  opts.add_options()("help,h", "show this help")(
+  opts.add_options()("help,h", "show this help")("version", "print the version and exit")(
       "out,o", po::value<std::string>()->default_value("results/verification"), "directory for the CSV files");
   po::variables_map vm;
   try {
@@ -201,6 +206,10 @@ int main(int argc, char** argv) {
   } catch (const po::error& e) {
     std::cerr << "bladefem-verify: " << e.what() << "\n";
     return 2;
+  }
+  if (vm.count("version")) {
+    std::cout << "bladefem-verify " << kVersion << '\n';
+    return 0;
   }
   if (vm.count("help")) {
     std::cout << "Usage: bladefem-verify [--out DIR]\n\n" << opts << "\n";

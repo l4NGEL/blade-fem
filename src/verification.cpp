@@ -45,8 +45,9 @@ double h1_seminorm_error(const Mesh& mesh, const Eigen::VectorXd& u,
     const Vec2& p1 = mesh.nodes[static_cast<std::size_t>(tri[1])];
     const Vec2& p2 = mesh.nodes[static_cast<std::size_t>(tri[2])];
     const double twoA = 2.0 * mesh.area(t);
-    const Vec2 grad((u[tri[0]] * (p1.y() - p2.y()) + u[tri[1]] * (p2.y() - p0.y()) + u[tri[2]] * (p0.y() - p1.y())) / twoA,
-                    (u[tri[0]] * (p2.x() - p1.x()) + u[tri[1]] * (p0.x() - p2.x()) + u[tri[2]] * (p1.x() - p0.x())) / twoA);
+    const Vec2 grad(
+        (u[tri[0]] * (p1.y() - p2.y()) + u[tri[1]] * (p2.y() - p0.y()) + u[tri[2]] * (p0.y() - p1.y())) / twoA,
+        (u[tri[0]] * (p2.x() - p1.x()) + u[tri[1]] * (p0.x() - p2.x()) + u[tri[2]] * (p1.x() - p0.x())) / twoA);
     return (grad - exact_gradient(x)).squaredNorm();
   });
   return std::sqrt(e2);
@@ -85,12 +86,13 @@ Eigen::Vector3d KirschPlate::stress(const Vec2& p) const {
   const double a2 = a * a / r2;
   const double a4 = a2 * a2;
   const double c2 = std::cos(2 * th), c4 = std::cos(4 * th), s2 = std::sin(2 * th), s4 = std::sin(4 * th);
-  return {s0 * (1.0 - a2 * (1.5 * c2 + c4) + 1.5 * a4 * c4),
-          s0 * (-a2 * (0.5 * c2 - c4) - 1.5 * a4 * c4),
+  return {s0 * (1.0 - a2 * (1.5 * c2 + c4) + 1.5 * a4 * c4), s0 * (-a2 * (0.5 * c2 - c4) - 1.5 * a4 * c4),
           s0 * (-a2 * (0.5 * s2 + s4) + 1.5 * a4 * s4)};
 }
 
-double ThermoelasticRing::temperature(double r) const { return T_a + C * std::log(r / a); }
+double ThermoelasticRing::temperature(double r) const {
+  return T_a + C * std::log(r / a);
+}
 
 Eigen::Vector3d ThermoelasticRing::stress(const Vec2& p) const {
   const double r = p.norm();
@@ -109,8 +111,7 @@ Eigen::Vector4d ThermoelasticRing::stress_long_cylinder(const Vec2& p, double nu
   // In-plane stresses are the thin-ring ones scaled by 1 / (1 - nu); the axial
   // stress follows from a uniform eps_zz chosen so that the ends are force-free.
   const Eigen::Vector3d s = stress(p) / (1.0 - nu);
-  const double Ib = T_a * (b * b - a * a) / 2.0 +
-                    C * (b * b / 2.0 * std::log(b / a) - b * b / 4.0 + a * a / 4.0);
+  const double Ib = T_a * (b * b - a * a) / 2.0 + C * (b * b / 2.0 * std::log(b / a) - b * b / 4.0 + a * a / 4.0);
   const double szz = alpha * E / (1.0 - nu) * (2.0 * Ib / (b * b - a * a) - temperature(p.norm()));
   return {s[0], s[1], s[2], szz};
 }

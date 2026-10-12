@@ -139,7 +139,7 @@ SCENARIO("Coupled analysis: a ring heated inside and cooled outside", "[thermal-
     const verification::ThermoelasticRing ring{a, b, E, alpha, Ta, C};
 
     struct Result {
-      double stress_l2;         // relative L2 error of the stress tensor
+      double stress_l2;  // relative L2 error of the stress tensor
       double hoop_inner, hoop_outer;
       double max_reaction;
     };
@@ -192,7 +192,9 @@ SCENARIO("Coupled analysis: a ring heated inside and cooled outside", "[thermal-
         CHECK_THAT(fine.hoop_inner, WithinRel(exact_inner, 0.10));
         CHECK_THAT(fine.hoop_outer, WithinRel(exact_outer, 0.05));
       }
-      THEN("the supports stay unloaded") { CHECK(fine.max_reaction < 1e-12 * E * alpha * 700.0 * b); }
+      THEN("the supports stay unloaded") {
+        CHECK(fine.max_reaction < 1e-12 * E * alpha * 700.0 * b);
+      }
     }
   }
 }
@@ -248,7 +250,8 @@ SCENARIO("Generalized plane strain: a linear temperature bends the bar freely", 
   }
 }
 
-SCENARIO("Generalized plane strain: long cylinder heated inside, cooled outside", "[thermal-stress][gps][coupled][convergence]") {
+SCENARIO("Generalized plane strain: long cylinder heated inside, cooled outside",
+         "[thermal-stress][gps][coupled][convergence]") {
   GIVEN("the ring conduction problem treated as a long cylinder with free ends") {
     const double a = 0.010, b = 0.025, k = 20.0, h = 800.0, Ta = 1100.0, Tinf = 400.0;
     const double C = h * (Tinf - Ta) / (k / b + h * std::log(b / a));
